@@ -97,7 +97,7 @@ class OrthoConv:
             The batch size to use.
         learning_rate : float (default)
             Learning rate to use in optimisation using Adam optimiser.
-        epochs : int (default = 2)
+        epochs : int (default=2)
             Number of epochs to optimise for.
         L1_output_lambda : float (default=10e-5)
             The weighting applied to L1 regularisation on the output of the
