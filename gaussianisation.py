@@ -172,6 +172,7 @@ class HistogramGaussianisation:
         # Inverse Gauss CDF
         ibijector = InverseGaussCDF(eps=eps)
         Z_G = ibijector.forward(Z_U)
+        log_pZ += ibijector.gradient(Z_U)
         transformations.append(ibijector)
 
         MI = information_reduction(Z_G,Z)
