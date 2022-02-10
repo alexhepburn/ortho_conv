@@ -72,7 +72,7 @@ class OrthoConv:
 
         # Orthonormal initialization
         initializer = tf.keras.initializers.Orthogonal(gain=1.0)
-        self.W = tf.Variable( initializer(shape=self.shape_W), trainable=True)
+        self.W = tf.Variable(initializer(shape=self.shape_W), trainable=True)
         
         self.T_idxs, self.f_idxs = None, None
 
@@ -117,7 +117,7 @@ class OrthoConv:
         train_dataset = tf.data.Dataset.from_tensor_slices(
             images.astype('float32')).shuffle(self.BUFFER_SIZE).batch(BATCH)
         # optimizer
-        optimizer = tf.optimizers.Adam( learning_rate=learning_rate)
+        optimizer = tf.optimizers.Adam(learning_rate=learning_rate)
         self.train(train_dataset, epochs, optimizer)
 
     def predict(self,
@@ -142,7 +142,7 @@ class OrthoConv:
                            self.W,self.stride_size, padding='SAME')
 
         out_images = np.zeros((Nim,aux.shape[1],aux.shape[2],aux.shape[3]),
-                              dtype=np.float32)
+                              np.float32)
             
         for ii in range(0,Nim,self.BATCH):
             out_images[ii:ii+self.BATCH,:,:,:] = tf.nn.conv2d(
@@ -170,7 +170,7 @@ class OrthoConv:
             The reconstructed image from the inverse transformation.
         """
         Nim = encoded.shape[0]
-        reconstructed = np.zeros((Nim,*self.in_shape[1:]))
+        reconstructed = np.zeros((Nim,*self.in_shape[1:]), dtype=np.float32)
     
         for ii in range(0,Nim,self.BATCH):
             # DECODER
@@ -225,7 +225,7 @@ class OrthoConv:
 
         grads = tape.gradient(current_loss , self.W)
         optimizer.apply_gradients([(grads , self.W)])
-        
+
         return current_loss, L2_loss
 
     def train(self, dataset, epochs, optimizer):
@@ -247,7 +247,7 @@ class OrthoConv:
             for image_batch in dataset:
                 summ_loss, L2_loss = self.train_step(image_batch, optimizer)
 
-            tf.summary.scalar('loss', data=summ_loss, step=epoch )
+            tf.summary.scalar('loss', data=summ_loss, step=epoch)
             print ('Total loss {}, L2 loss {}'.format(summ_loss, L2_loss))
 
     def exact_inverse(self, input_shape, encoded):
