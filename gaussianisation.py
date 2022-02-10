@@ -175,6 +175,6 @@ class HistogramGaussianisation:
         log_pZ += ibijector.gradient(Z_U)
         transformations.append(ibijector)
 
-        MI = information_reduction(Z_G,Z)
+        MI = information_reduction(Z,Z_G)
 
         return Z_G, transformations, log_pZ, MI
