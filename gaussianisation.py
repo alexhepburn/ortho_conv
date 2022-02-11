@@ -82,7 +82,7 @@ class HistogramGaussianisation:
         Nim = aux.shape[0]
         
         BATCH_loop = self.im_shape[1]*self.im_shape[2]*batch
-        images_G = np.zeros(images.shape)
+        images_G = np.zeros(images.shape, dtype=np.float32)
 
         cada = 0
         for ii in range(0,Nim,BATCH_loop):
@@ -121,7 +121,7 @@ class HistogramGaussianisation:
         Nim = aux.shape[0]
         
         BATCH_loop = self.im_shape[1]*self.im_shape[2]*batch
-        images_I = np.zeros(images.shape)
+        images_I = np.zeros(images.shape, dtype=np.float32)
 
         cada = 0
         for ii in range(0,Nim,BATCH_loop):
@@ -162,16 +162,16 @@ class HistogramGaussianisation:
         bins = "auto"
         alpha = 1e-10
         bound_ext = 0.3
-        eps = 1e-10
+        eps = 1e-5
 
         ibijector = MarginalHistogramUniformization(Z, bound_ext=bound_ext, bins=bins, alpha=alpha)
-        Z_U = ibijector.forward(Z)
+        Z_U = ibijector.forward(Z).astype(np.float32)
         log_pZ = ibijector.gradient(Z)
         transformations.append(ibijector)
 
         # Inverse Gauss CDF
         ibijector = InverseGaussCDF(eps=eps)
-        Z_G = ibijector.forward(Z_U)
+        Z_G = ibijector.forward(Z_U).astype(np.float32)
         log_pZ += ibijector.gradient(Z_U)
         transformations.append(ibijector)
 
