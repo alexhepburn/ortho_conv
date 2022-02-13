@@ -12,7 +12,6 @@ __all__ = ['HistogramGaussianisation']
 
 class HistogramGaussianisation:
     """A class for Gaussianisation via histograms.
-
     Attributes
     ----------
     transformations : List[object]
@@ -29,9 +28,7 @@ class HistogramGaussianisation:
             images : np.ndarray,
             n_samples : int = 10000) -> np.ndarray:
         """Fits the transformations to the data.
-
         Fits the marginal Gaussianisation transform to the data. 
-
         Parameters
         ----------
         images : numpy.ndarray
@@ -58,10 +55,8 @@ class HistogramGaussianisation:
                 images : np.ndarray,
                 batch : int = 100):
         """Performs marginal Gaussianisation on the data.
-
         Marginally Gaussianises the data according to the trained
         transformations.
-
         Parameters
         ----------
         images : numpy.ndarray
@@ -83,24 +78,29 @@ class HistogramGaussianisation:
         
         BATCH_loop = self.im_shape[1]*self.im_shape[2]*batch
         images_G = np.zeros(images.shape, dtype=np.float32)
+        self.val_log_pZ = np.zeros(images.shape[0], dtype=np.float32)
 
         cada = 0
         for ii in range(0,Nim,BATCH_loop):
             Z_U2 = self.transformations[0].forward(aux[ii:ii+BATCH_loop,:])
+            log_pZ_aux = self.transformations[0].gradient(aux[ii:ii+BATCH_loop,:])
             Z_G2 = self.transformations[1].forward(Z_U2)
+            log_pZ_aux += self.transformations[1].gradient(Z_U2)
             images_G[cada:cada+batch,:,:,:] = np.reshape(
-                Z_G2,(batch,*images.shape[1:]))    
+                Z_G2,(batch,*images.shape[1:]))
+            log_pZ_aux = np.reshape(log_pZ_aux,(batch,*images.shape[1:-1]))    
+            self.val_log_pZ[cada:cada+batch] = np.mean(log_pZ_aux,axis=(1,2))  
             cada = cada+batch
 
+        self.val_MI = information_reduction(aux,np.reshape(images_G,aux.shape))
+        
         return images_G
 
     def inverse(self,
                 images : np.ndarray,
                 batch : int = 100):
         """Applies inverse transform.
-
         Applies the inverse transform according to the learned transformations.
-
         Parameters
         ----------
         images : numpy.ndarray
@@ -137,10 +137,8 @@ class HistogramGaussianisation:
                                  Z : np.ndarray
         ) -> Tuple[np.ndarray, List[object], np.ndarray, float]:
         """Gets the marginal Gaussianisation transformations.
-
         Gets the marginal Gaussianisation transformations using the functions
         from the RBIG package https://github.com/IPL-UV/rbig/
-
         Parameters
         ----------
         Z : numpy.ndarray
