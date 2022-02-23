@@ -26,7 +26,7 @@ def padding(input_size, f_size, stride):
   pad_left = pad_w // 2
   pad_right = pad_w- pad_left
 
-  return [pad_top, pad_bottom, pad_left, pad_right]
+  return [max(pad_top, pad_bottom), max(pad_left, pad_right)]
 
 
 def get_sparse_toeplitz(f, dshape, T_idxs, f_idxs):
