@@ -5,7 +5,7 @@ from typing import List, Union
 import tensorflow as tf
 import numpy as np
 
-from utils import get_toeplitz_idxs, get_sparse_toeplitz
+from orthoconv.utils import get_toeplitz_idxs, get_sparse_toeplitz
 
 __all__ = ['OrthoConv']
 
@@ -171,7 +171,6 @@ class OrthoConv:
         """
         Nim = encoded.shape[0]
         reconstructed = np.zeros((Nim,*self.in_shape[1:]))
-    
         for ii in range(0,Nim,self.BATCH):
             # DECODER
             reconstructed[ii:ii+self.BATCH,:,:,:] = tf.nn.conv2d_transpose(
@@ -211,11 +210,10 @@ class OrthoConv:
                 self.W,
                 self.stride_size,
                 padding='SAME')
-
             decoded = tf.nn.conv2d_transpose(
                 encoded,
                 self.W,
-                (self.BATCH,*self.in_shape[1:]),
+                (inputs.shape[0],*self.in_shape[1:]),
                 self.stride_size,
                 padding='SAME')
 
@@ -286,10 +284,8 @@ class OrthoConv:
 
     def sparse_toeplitz(self, input_shape):
         '''Generates convolutional matrix
-
         Calculates the toeplitz matrix corresponding to the convolution using
         sparse tensors.
-
         Parameters
         ----------
         input_shape : List[int]
@@ -305,14 +301,12 @@ class OrthoConv:
             self.T_idxs, self.f_idxs = get_toeplitz_idxs(
                     W_T.shape, input_shape[1:],
                     (self.stride_size, self.stride_size))
-
         T_sparse = get_sparse_toeplitz(W_T, input_shape[1:],
                                         self.T_idxs, self.f_idxs)
-        return tf.sparse.reorder(T_sparse)
-    
+        return tf.sparse.reorder(T_sparse)  
+
     def logdetJ(self, input_shape):
         """Calculates log det(J)
-
         Calculates the logarithm of the determinant of the Jacobian of the
         transformation.
         """

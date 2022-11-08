@@ -60,3 +60,4 @@ def get_toeplitz_idxs(fshape, dshape, f_stride=(1,1)):
         f_idxs.append(f_flat_idx)
 
   return (np.array(T_idxs), np.array(f_idxs))
+

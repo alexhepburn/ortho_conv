@@ -1,0 +1,6 @@
+numpy>=1.10.0
+scipy>=0.13.3
+git+https://github.com/IPL-UV/rbig.git #egg=rbig
+statsmodels
+python-picard
+astropy
