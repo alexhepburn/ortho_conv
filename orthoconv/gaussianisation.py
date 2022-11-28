@@ -183,7 +183,7 @@ class HistogramGaussianisation:
 
         bins = "auto"
         alpha = 1e-10
-        bound_ext = 0.3
+        bound_ext = 1.0
         eps = 1e-5
 
         ibijector = MarginalHistogramUniformization(Z, bound_ext=bound_ext, bins=bins, alpha=alpha)
