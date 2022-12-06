@@ -71,12 +71,20 @@ class SpatialReshape:
             The reocnstruction of the images using the inverse transform.
         """
         # Effectively zero padding the images to be the same size as the input.
-        reconstructed = np.zeros(self.in_shape) - 100000
+        reconstructed = np.zeros(self.in_shape)
         for n, (i, k) in enumerate(self.indices):
             reconstructed[:, i::self.stride, k::self.stride, :] = encoded[:, :,
                 :, n*reconstructed.shape[-1]:reconstructed.shape[-1]*(n+1)]
 
         return reconstructed
+    
+    def logdetJ(self, input_shape):
+        """Calculates log det(J)
+        Calculates the logarithm of the determinant of the Jacobian of the
+        transformation.
+        """
+        logsdetJ = tf.repeat(0.0, input_shape[0])
+        return logsdetJ
 
 
 def im2toepidx(c, i, j, h, w):
