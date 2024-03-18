@@ -17,15 +17,11 @@ __all__ = ['OrthoConv', 'InvertibleConv2dEmerging']
 class OrthoConv:
     """
     A class for orthonormal convolutions
-
     A 2-D convolution that maintains dimensionality and can be trained to be
     orthonormal and invertible. If we minimise a reconstruction loss, then
-
     .. math::
         V^T V \cdot \tilde{Im} = \tilde{Im}
-
     and the convolutional matrix `V` is orthonormal.
-
     Parameters
     ----------
     filter_width : int (default=3)
@@ -36,7 +32,10 @@ class OrthoConv:
         assumed to be the same for both dimensions.
     input_channels : int (default=1)
         The number of channels in the input.
-
+    n_channel_factor : int (default=1)
+        Defining the number of channels in the inner domain as `input_channels`
+        x `n_channel_factor`.
+        
     Attributes
     ----------
     shape_W : List[int]
@@ -45,6 +44,10 @@ class OrthoConv:
         The convolution filter used of size `[filter_width`, filter_width, 
         input_channels, stride^2*input_channels]`. `W` is initialised to be
         a random orthogonal matrix.
+    Wi : tf.Variable
+        The convolution filter used in the inverse of size `[filter_width`,
+        filter_width, input_channels, stride^2*input_channels]`. `Wi` is
+        initialised to be a random orthogonal matrix.
     T_idxs : Union[List[int], None]
         A list of indices for the convolutional matrix corresponding to the
         convolution operation. This is set when called, and will be initialised
@@ -53,12 +56,12 @@ class OrthoConv:
         A list of filter indices that corresponds to the indices in `T_idxs`.
         This is set when called, and will be initialised as `None`.
     
-
     """
     def __init__(self,
                  filter_width: int = 3,
                  stride: int = 1,
-                 input_channels: int = 1) -> None:
+                 input_channels: int = 1,
+                 n_channel_factor: int = 1) -> None:
         """
         Constructs an OrthoConv class.
         """
@@ -70,14 +73,16 @@ class OrthoConv:
         self.loss_MSE = tf.keras.losses.MeanSquaredError()
         self.loss_MAE = tf.keras.regularizers.L1()
         # weights
-        output_channels = stride**2 * input_channels
+        output_channels = stride**2 * input_channels * n_channel_factor
+
         self.shape_W = [filter_width, filter_width , input_channels,
                         output_channels]
 
         # Orthonormal initialization
         initializer = tf.keras.initializers.Orthogonal(gain=1.0)
         self.W = tf.Variable( initializer(shape=self.shape_W), trainable=True)
-        
+        self.Wi = tf.Variable(initial_value=self.W, trainable=True)
+
         self.T_idxs, self.f_idxs = None, None
 
     def fit(self,
@@ -88,11 +93,9 @@ class OrthoConv:
             activation_L1 : float = 10e-5,
             weight_L1 : float = 0.0) -> None:
         """Trains to model for reconstruction.
-
         Optimises the model using Adam optimiser for the L2 loss between the
         input and the reconstructed input (one convolution then transposed
         convolution).
-
         Parameters
         ----------
         images : numpy.ndarray
@@ -122,16 +125,13 @@ class OrthoConv:
             images.astype('float32')).shuffle(self.BUFFER_SIZE).batch(BATCH)
         # optimizer
         optimizer = tf.optimizers.Adam( learning_rate=learning_rate)
-        losses = self.train(train_dataset, epochs, optimizer)
-        return losses
+        self.train(train_dataset, epochs, optimizer)
 
     def predict(self,
                 images : np.ndarray) -> np.ndarray:
         """Forward pass of the convolution.
-
         Calculates the forward pass of the convolution, i.e. images convolved
         with the filter.
-
         Parameters
         ----------
         images : numpy.ndarray
@@ -148,7 +148,7 @@ class OrthoConv:
 
         out_images = np.zeros((Nim,aux.shape[1],aux.shape[2],aux.shape[3]),
                               dtype=np.float32)
-            
+
         for ii in range(0,Nim,self.BATCH):
             out_images[ii:ii+self.BATCH,:,:,:] = tf.nn.conv2d(
                 images[ii:ii+self.BATCH,:,:,:],
@@ -160,31 +160,28 @@ class OrthoConv:
     def inverse(self,
                 encoded : np.ndarray) -> np.ndarray:
         """Performs inverse convolution using the transpose.
-
         Performs a transpose convolution with the filter `W` to get the inverse
         transformation.
-
         Parameters
         ----------
         encoded : numpy.ndarray
             Encoded array to be inverted.
-
         Returns
         -------
         reconstructed : numpy.ndarray
             The reconstructed image from the inverse transformation.
         """
+
         Nim = encoded.shape[0]
-        reconstructed = np.zeros((Nim,*self.in_shape[1:]))
-        for ii in range(0,Nim,self.BATCH):
-            # DECODER
-            reconstructed[ii:ii+self.BATCH,:,:,:] = tf.nn.conv2d_transpose(
-                encoded[ii:ii+self.BATCH,:,:,:],
-                self.W,
-                (self.BATCH,*self.in_shape[1:]),
+        out_shape = (Nim,self.stride_size*encoded.shape[1],self.stride_size*encoded.shape[2],int(encoded.shape[3]/self.stride_size**2))
+
+        reconstructed = tf.nn.conv2d_transpose(
+                encoded,
+                self.Wi,
+                out_shape,
                 self.stride_size, padding='SAME')
 
-        return reconstructed
+        return reconstructed.numpy()
 
     @tf.function()  # Precompile
     def train_step(self,
@@ -192,9 +189,7 @@ class OrthoConv:
                    optimizer : tf.keras.optimizers.Optimizer
                    ) -> List[float]:
         """One training step.
-
         Performs one step of training and back propogation.
-
         Parameters
         ----------
         inputs : numpy.ndarray
@@ -215,10 +210,11 @@ class OrthoConv:
                 self.W,
                 self.stride_size,
                 padding='SAME')
+
             decoded = tf.nn.conv2d_transpose(
                 encoded,
-                self.W,
-                (inputs.shape[0],*self.in_shape[1:]),
+                self.Wi,
+                (self.BATCH,*self.in_shape[1:]),
                 self.stride_size,
                 padding='SAME')
 
@@ -226,17 +222,16 @@ class OrthoConv:
             current_loss = L2_loss + self.S_act*self.loss_MAE(encoded) + \
                 self.S_w*self.loss_MAE(self.W)    
 
-        grads = tape.gradient(current_loss , self.W)
-        optimizer.apply_gradients([(grads , self.W)])
-        
+        trainable_variables = [self.W, self.Wi]
+        grads = tape.gradient(current_loss , trainable_variables)
+        optimizer.apply_gradients(zip(grads , trainable_variables))
+
         return current_loss, L2_loss
 
     def train(self, dataset, epochs, optimizer):
         """Training loop.
-
         The training loop for certain number of epochs. Prints out the losses
         after each training epoch.
-
         Parameters
         ----------
         dataset : tensorflow.data.Dataset
@@ -246,14 +241,16 @@ class OrthoConv:
         optimizer : tensorflow.keras.optimiser_v2.OptimizerV2
             Optimiser to use.
         """
-        losses = []
         for epoch in range(epochs):
+            summ_loss = []
+            summ_L2_loss = []
             for image_batch in dataset:
-                summ_loss, L2_loss = self.train_step(image_batch, optimizer)
-                losses.append([summ_loss, L2_loss])
-            tf.summary.scalar('loss', data=summ_loss, step=epoch)
-            print ('Total loss {}, L2 loss {}'.format(summ_loss, L2_loss))
-        return losses
+                summ_loss_aux, L2_loss = self.train_step(image_batch, optimizer)
+                summ_loss.append(summ_loss_aux.numpy())
+                summ_L2_loss.append(L2_loss.numpy())
+
+            tf.summary.scalar('loss', data=np.mean(np.asarray(summ_loss)), step=epoch)
+            print ('Total loss {}, L2 loss {}'.format(np.mean(np.asarray(summ_loss)), np.mean(np.asarray(summ_L2_loss))))
 
     def exact_inverse(self, input_shape, encoded):
         """Computes exact inverse.
