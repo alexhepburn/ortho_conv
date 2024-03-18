@@ -1,6 +1,5 @@
 # Utility functions for orthno conv and marginal Gaussianisation
 
-import itertools
 import math
 import numpy as np
 from itertools import product
@@ -45,10 +44,11 @@ class SpatialReshape:
     
             out_images = np.zeros((images.shape[0], output_height, output_width,
                                    output_channels), dtype=np.float32)
-            
-            # Need to crop the images so the [H, W] are multiples of the stride.
-            images = images[:, 0:output_height*self.stride, 
-                            0:output_width*self.stride, :]
+
+            if ((output_height*self.stride!=images.shape[1]) or 
+                (output_width*self.stride!=images.shape[2])):
+                raise ValueError('Height of width of image not multiple of the'
+                                 'stride. Please crop the images.')
     
             # Get indices needed
             self.indices = list(product(
@@ -67,7 +67,7 @@ class SpatialReshape:
         ----------
         encoded : numpy.ndarray
             The encoded images. Must be of shape `[N, H, W, C]`.
-            
+
         Returns
         -------
         reconstructed : numpy.ndarray
@@ -76,24 +76,16 @@ class SpatialReshape:
         if self.stride==1:
             reconstructed = encoded
         else:
-            # Effectively zero padding the images to be the same size as the 
+            # Effectively zero padding the images to be the same size as the
             # input.
             reconstructed = np.zeros(self.in_shape)
             for n, (i, k) in enumerate(self.indices):
                 reconstructed[:, i::self.stride, k::self.stride, :] = \
-                    encoded[:, :,:, 
-                            n*reconstructed.shape[-1]:reconstructed.shape[-1]
-                            *(n+1)]
+                    encoded[:, :,:,
+                            n*reconstructed.shape[-1]:reconstructed.shape[-1]*
+                            (n+1)]
 
         return reconstructed
-    
-    def logdetJ(self, input_shape):
-        """Calculates log det(J)
-        Calculates the logarithm of the determinant of the Jacobian of the
-        transformation.
-        """
-        logsdetJ = tf.repeat(0.0, input_shape[0])
-        return logsdetJ
 
 
 def im2toepidx(c, i, j, h, w):

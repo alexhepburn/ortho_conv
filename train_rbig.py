@@ -19,7 +19,7 @@ train_images = (train_images/127.5)-1
 train_images = train_images[0:NNN,:,:,:]
 
 # PARAMS
-epochs = 1
+epochs = 5
 l1_act = 10e-5
 params = {
     'block1':{
@@ -44,7 +44,7 @@ params = {
         'fw': 3,
         'stride': 4,
         'n_layers': 2,
-        'epochs': 1,
+        'epochs': epochs,
         'l1_act': l1_act,
         'l1_w': 0.0,
         'n_channel_factor': 1
@@ -53,25 +53,25 @@ params = {
         'fw': 3,
         'stride': 8,
         'n_layers': 2,
-        'epochs': 1,
+        'epochs': epochs,
         'l1_act': l1_act,
         'l1_w': 0.0,
         'n_channel_factor': 1
     },
     'block5':{
         'fw': 2,
-        'stride': 12,
+        'stride': 16,
         'n_layers': 2,
-        'epochs': 1,
+        'epochs': epochs,
         'l1_act': l1_act,
         'l1_w': 0.0,
         'n_channel_factor': 1
     },
     'block6':{
         'fw': 1,
-        'stride': 18,
+        'stride': 32,
         'n_layers': 2,
-        'epochs': 1,
+        'epochs': epochs,
         'l1_act': l1_act,
         'l1_w': 0.0,
         'n_channel_factor': 1
