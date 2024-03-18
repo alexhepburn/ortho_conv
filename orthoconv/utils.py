@@ -35,24 +35,27 @@ class SpatialReshape:
         images : numpy.ndarray
             The images to transform. Must be of shape `[N, H, W, C]`.
         """
-        self.in_shape = images.shape # For use on the inverse.
-        output_height, output_width = images.shape[1]//self.stride, \
-            images.shape[2]//self.stride
-        output_channels = self.stride**2 * images.shape[-1]
-
-        out_images = np.zeros((images.shape[0], output_height, output_width,
-                               output_channels), dtype=np.float32)
-        
-        # Need to crop the images so the [H, W] are multiples of the stride.
-        images = images[:, 0:output_height*self.stride, 
-                        0:output_width*self.stride, :]
-
-        # Get indices needed
-        self.indices = list(product(
-            list(range(self.stride)), repeat=2))
-        for n, (i, k) in enumerate(self.indices):
-            out_images[:, :, :, n*images.shape[-1]:images.shape[-1]*(n+1)] = \
-                images[:, i::self.stride, k::self.stride, :]
+        if self.stride==1:
+            out_images = images
+        else:
+            self.in_shape = images.shape # For use on the inverse.
+            output_height, output_width = images.shape[1]//self.stride, \
+                images.shape[2]//self.stride
+            output_channels = self.stride**2 * images.shape[-1]
+    
+            out_images = np.zeros((images.shape[0], output_height, output_width,
+                                   output_channels), dtype=np.float32)
+            
+            # Need to crop the images so the [H, W] are multiples of the stride.
+            images = images[:, 0:output_height*self.stride, 
+                            0:output_width*self.stride, :]
+    
+            # Get indices needed
+            self.indices = list(product(
+                list(range(self.stride)), repeat=2))
+            for n, (i, k) in enumerate(self.indices):
+                out_images[:, :, :, n*images.shape[-1]:images.shape[-1]*(n+1)] = \
+                    images[:, i::self.stride, k::self.stride, :]
 
         return out_images
 
@@ -70,11 +73,17 @@ class SpatialReshape:
         reconstructed : numpy.ndarray
             The reocnstruction of the images using the inverse transform.
         """
-        # Effectively zero padding the images to be the same size as the input.
-        reconstructed = np.zeros(self.in_shape)
-        for n, (i, k) in enumerate(self.indices):
-            reconstructed[:, i::self.stride, k::self.stride, :] = encoded[:, :,
-                :, n*reconstructed.shape[-1]:reconstructed.shape[-1]*(n+1)]
+        if self.stride==1:
+            reconstructed = encoded
+        else:
+            # Effectively zero padding the images to be the same size as the 
+            # input.
+            reconstructed = np.zeros(self.in_shape)
+            for n, (i, k) in enumerate(self.indices):
+                reconstructed[:, i::self.stride, k::self.stride, :] = \
+                    encoded[:, :,:, 
+                            n*reconstructed.shape[-1]:reconstructed.shape[-1]
+                            *(n+1)]
 
         return reconstructed
     
