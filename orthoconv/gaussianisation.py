@@ -12,17 +12,24 @@ __all__ = ['HistogramGaussianisation']
 
 class HistogramGaussianisation:
     """A class for Gaussianisation via histograms.
+
+    Parameters
+    ----------
+    bound_ext : float (default=0.1):
+        Amount to extend the boundary by for marginal Gaussianisation.
+
     Attributes
     ----------
     transformations : List[object]
         The transformations that lead to marginal Gaussianisation. Populated
         after `fit` has been called.
     """
-    def __init__(self):
+    def __init__(self, bound_ext=0.1):
         """
         Constructs a HistogramGaussianisation class.
         """
         self.transformations = []
+        self.bound_ext = bound_ext
     
     def fit(self,
             images : np.ndarray,
@@ -85,7 +92,8 @@ class HistogramGaussianisation:
         cada = 0
         for ii in range(0,Nim,BATCH_loop):
             Z_U2 = self.transformations[0].forward(aux[ii:ii+BATCH_loop,:])
-            log_pZ_aux = self.transformations[0].gradient(aux[ii:ii+BATCH_loop,:])
+            log_pZ_aux = self.transformations[0].gradient(
+                aux[ii:ii+BATCH_loop,:])
             Z_G2 = self.transformations[1].forward(Z_U2)
             log_pZ_aux += self.transformations[1].gradient(Z_U2)
             images_G[cada:cada+batch,:,:,:] = np.reshape(
@@ -136,20 +144,18 @@ class HistogramGaussianisation:
         for ii in range(0,ALL_samples_loop,BATCH_loop):
              # for synthesis
             if synthesis_flag == 1:
-                aux[ii:(ii+BATCH_loop),:],_,_,_  = self.marginal_gaussianization(aux[ii:(ii+BATCH_loop),:])
+                aux[ii:(ii+BATCH_loop),:],_,_,_  = \
+                    self.marginal_gaussianization(aux[ii:(ii+BATCH_loop),:])
 
             Z_Ui = self.transformations[1].inverse(aux[ii:(ii+BATCH_loop),:])
             Z_i = self.transformations[0].inverse(Z_Ui)
             images_I[cada:cada+batch,:,:,:] = np.reshape(Z_i,(batch,*images.shape[1:]))    
             cada = cada+batch
 
-
-        # left samples
-        
         # for synthesis
         if synthesis_flag == 1:
-            #aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:],_,_,_ = self.marginal_gaussianization(aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:])
-            aux[ALL_samples_loop:,:],_,_,_ = self.marginal_gaussianization(aux[ALL_samples_loop:,:])
+            aux[ALL_samples_loop:,:],_,_,_ = \
+                self.marginal_gaussianization(aux[ALL_samples_loop:,:])
         
         Z_Ui = self.transformations[1].inverse(aux[ALL_samples_loop:,:])
         Z_i = self.transformations[0].inverse(Z_Ui)
@@ -183,10 +189,10 @@ class HistogramGaussianisation:
 
         bins = "auto"
         alpha = 1e-10
-        bound_ext = 0.3
         eps = 1e-5
 
-        ibijector = MarginalHistogramUniformization(Z, bound_ext=bound_ext, bins=bins, alpha=alpha)
+        ibijector = MarginalHistogramUniformization(
+            Z, bound_ext=self.bound_ext, bins=bins, alpha=alpha)
         Z_U = ibijector.forward(Z).astype(np.float32)
         log_pZ = ibijector.gradient(Z)
         transformations.append(ibijector)

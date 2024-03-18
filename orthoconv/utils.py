@@ -92,20 +92,21 @@ def im2toepidx(c, i, j, h, w):
     return c*h*w + i*w + j
 
 
-def padding(input_size, f_size, stride):
-  h, w = input_size[0:2]
-  out_height = math.ceil(float(h) / float(stride[0]))
-  out_width  = math.ceil(float(w) / float(stride[1]))
-
-  pad_h = max((out_height - 1) * stride[0] + f_size[0] - h, 0)
-  pad_w = max((out_width - 1) * stride[1] + f_size[1] - w, 0)
-
-  pad_top = pad_h // 2
-  pad_bottom = pad_h - pad_top
-  pad_left = pad_w // 2
-  pad_right = pad_w- pad_left
-
-  return [max(pad_top, pad_bottom), max(pad_left, pad_right)]
+def padding(input_size, f_size, strides):
+    in_height, in_width = input_size
+    filter_height, filter_width = f_size
+    out_height = math.ceil(float(in_height) / float(strides[0]))
+    out_width  = math.ceil(float(in_width) / float(strides[1]))
+    pad_along_height = max((out_height - 1) * strides[0] +
+                    filter_height - in_height, 0)
+    pad_along_width = max((out_width - 1) * strides[1] +
+                       filter_width - in_width, 0)
+    pad_top = pad_along_height // 2
+    pad_bottom = pad_along_height - pad_top
+    pad_left = pad_along_width // 2
+    pad_right = pad_along_width - pad_left
+    return tf.constant(
+        [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]])
 
 
 def get_sparse_toeplitz(f, dshape, T_idxs, f_idxs):

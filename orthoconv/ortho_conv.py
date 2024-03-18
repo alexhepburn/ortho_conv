@@ -149,12 +149,17 @@ class OrthoConv:
         out_images = np.zeros((Nim,aux.shape[1],aux.shape[2],aux.shape[3]),
                               dtype=np.float32)
 
+        paddings = utils.padding(
+            images.shape[1:3], [self.FW, self.FW], [1, 1])
+
         for ii in range(0,Nim,self.BATCH):
+            padded = tf.pad(
+                images[ii:ii+self.BATCH,:,:,:], paddings, mode='SYMMETRIC')
             out_images[ii:ii+self.BATCH,:,:,:] = tf.nn.conv2d(
-                images[ii:ii+self.BATCH,:,:,:],
+                padded,
                 self.W,
                 self.stride_size,
-                padding='SAME')
+                padding='VALID')
         return out_images
 
     def inverse(self,
