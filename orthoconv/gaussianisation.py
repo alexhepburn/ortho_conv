@@ -145,11 +145,13 @@ class HistogramGaussianisation:
              # for synthesis
             if synthesis_flag == 1:
                 aux[ii:(ii+BATCH_loop),:],_,_,_  = \
-                    self.marginal_gaussianization(aux[ii:(ii+BATCH_loop),:])
+                    self.marginal_gaussianization(
+                        aux[ii:(ii+BATCH_loop),:]).astype(np.float32)
 
             Z_Ui = self.transformations[1].inverse(aux[ii:(ii+BATCH_loop),:])
             Z_i = self.transformations[0].inverse(Z_Ui)
-            images_I[cada:cada+batch,:,:,:] = np.reshape(Z_i,(batch,*images.shape[1:]))    
+            images_I[cada:cada+batch,:,:,:] = np.reshape(
+                Z_i,(batch,*images.shape[1:])).astype(np.float32) 
             cada = cada+batch
 
         # for synthesis

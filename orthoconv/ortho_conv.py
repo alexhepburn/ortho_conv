@@ -178,7 +178,11 @@ class OrthoConv:
         """
 
         Nim = encoded.shape[0]
-        out_shape = (Nim,self.stride_size*encoded.shape[1],self.stride_size*encoded.shape[2],int(encoded.shape[3]/self.stride_size**2))
+        out_shape = (
+            Nim,
+            self.stride_size*encoded.shape[1],
+            self.stride_size*encoded.shape[2],
+            int(encoded.shape[3]/self.stride_size**2))
 
         reconstructed = tf.nn.conv2d_transpose(
                 encoded,
@@ -210,12 +214,15 @@ class OrthoConv:
             The L2 reconstruction loss for this batch.
         """
         with tf.GradientTape() as tape:
+            paddings = utils.padding(
+                inputs.shape[1:3], [self.FW, self.FW], [1, 1])
+            padded = tf.pad(inputs, paddings, mode='SYMMETRIC')
             encoded = tf.nn.conv2d(
-                inputs,
+                padded,
                 self.W,
                 self.stride_size,
-                padding='SAME')
-
+                padding='VALID')
+    
             decoded = tf.nn.conv2d_transpose(
                 encoded,
                 self.Wi,

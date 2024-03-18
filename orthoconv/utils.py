@@ -7,7 +7,8 @@ from itertools import product
 import tensorflow as tf
 
 __all__ = ['SpatialReshape', 'im2toepidx', 'padding', 'get_sparse_toeplitz',
-           'get_toeplitz_idxs', 'get_conv_square_ar_mask', 'get_conv_weight_np']
+           'get_toeplitz_idxs', 'get_conv_square_ar_mask', 'get_conv_weight_np',
+           'transpose_pad']
 
 
 class SpatialReshape:
@@ -78,7 +79,7 @@ class SpatialReshape:
         else:
             # Effectively zero padding the images to be the same size as the
             # input.
-            reconstructed = np.zeros(self.in_shape)
+            reconstructed = np.zeros(self.in_shape, dtype=np.float32)
             for n, (i, k) in enumerate(self.indices):
                 reconstructed[:, i::self.stride, k::self.stride, :] = \
                     encoded[:, :,:,
@@ -101,6 +102,19 @@ def padding(input_size, f_size, strides):
                     filter_height - in_height, 0)
     pad_along_width = max((out_width - 1) * strides[1] +
                        filter_width - in_width, 0)
+    pad_top = pad_along_height // 2
+    pad_bottom = pad_along_height - pad_top
+    pad_left = pad_along_width // 2
+    pad_right = pad_along_width - pad_left
+    return tf.constant(
+        [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]])
+
+
+def transpose_padding(input_size, f_size, strides):
+    pad_along_height = int((
+        (input_size[0]-1)-(input_size[0]-1)*(strides[0])+(f_size[0]-1))/2)
+    pad_along_width = int((
+        (input_size[1]-1)-(input_size[1]-1)*strides[1]+(f_size[1]-1))/2)
     pad_top = pad_along_height // 2
     pad_bottom = pad_along_height - pad_top
     pad_left = pad_along_width // 2
