@@ -1,4 +1,4 @@
-# File containing classes for Gaussianisation
+ #File containing classes for Gaussianisation
 
 from typing import Tuple, List
 import numpy as np
@@ -26,7 +26,7 @@ class HistogramGaussianisation:
     
     def fit(self,
             images : np.ndarray,
-            n_samples : int = 10000) -> np.ndarray:
+            n_samples : int = int(1e6)) -> np.ndarray:
         """Fits the transformations to the data.
         Fits the marginal Gaussianisation transform to the data. 
         Parameters
@@ -41,13 +41,15 @@ class HistogramGaussianisation:
         Z_G : numpy.ndarray
             The marginally Gaussianised data.
         """
+        self.im_shape = images.shape
+        n_samples = int(np.min([n_samples,np.prod(images.shape[0:3])]))
         aux = np.reshape(images,(np.prod(images.shape[0:-1]),images.shape[3]))
-        self.Z = np.random.permutation(aux)[0:n_samples,:]
+        del images
+        Z = np.random.permutation(aux)[0:n_samples,:]
 
         Z_G, self.transformations, self.log_pZ_1, self.MI_1 = \
-            self.marginal_gaussianization(self.Z)
+            self.marginal_gaussianization(Z)
 
-        self.im_shape = images.shape
 
         return Z_G
 
@@ -69,8 +71,6 @@ class HistogramGaussianisation:
         images_G : numpy.ndarray
             The Gaussianised images.
         """
-        if batch > images.shape[0]: # if there's only one batch
-            batch = images.shape[0]
 
         aux = np.reshape(
             images,
@@ -148,7 +148,7 @@ class HistogramGaussianisation:
         
         # for synthesis
         if synthesis_flag == 1:
-            #aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:],_,_,_ self.marginal_gaussianization(aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:])
+            #aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:],_,_,_ = self.marginal_gaussianization(aux[ALL_samples_loop:ALL_samples_loop+np.prod(images.shape[1:3])*but,:])
             aux[ALL_samples_loop:,:],_,_,_ = self.marginal_gaussianization(aux[ALL_samples_loop:,:])
         
         Z_Ui = self.transformations[1].inverse(aux[ALL_samples_loop:,:])
@@ -183,7 +183,7 @@ class HistogramGaussianisation:
 
         bins = "auto"
         alpha = 1e-10
-        bound_ext = 0.7
+        bound_ext = 0.3
         eps = 1e-5
 
         ibijector = MarginalHistogramUniformization(Z, bound_ext=bound_ext, bins=bins, alpha=alpha)

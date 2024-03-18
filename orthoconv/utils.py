@@ -8,7 +8,7 @@ from itertools import product
 import tensorflow as tf
 
 __all__ = ['SpatialReshape', 'im2toepidx', 'padding', 'get_sparse_toeplitz',
-           'get_toeplitz_idxs']
+           'get_toeplitz_idxs', 'get_conv_square_ar_mask', 'get_conv_weight_np']
 
 
 class SpatialReshape:
@@ -48,7 +48,7 @@ class SpatialReshape:
                         0:output_width*self.stride, :]
 
         # Get indices needed
-        self.indices = list(itertools.product(
+        self.indices = list(product(
             list(range(self.stride)), repeat=2))
         for n, (i, k) in enumerate(self.indices):
             out_images[:, :, :, n*images.shape[-1]:images.shape[-1]*(n+1)] = \
@@ -139,3 +139,43 @@ def get_toeplitz_idxs(fshape, dshape, f_stride=(1,1)):
 
   return (np.array(T_idxs), np.array(f_idxs))
 
+
+def get_conv_weight_np(filter_shape, stable_init=True, unit_testing=False):
+    weight_np = np.random.randn(*filter_shape) * 0.02
+    kcent = (filter_shape[0] - 1) // 2
+    if stable_init or unit_testing:
+        weight_np[kcent, kcent, :, :] += 1. * np.eye(filter_shape[3])
+    weight_np = weight_np.astype('float32')
+    return weight_np
+
+
+def get_linear_ar_mask(n_in, n_out, zerodiagonal=False):
+    assert n_in % n_out == 0 or n_out % n_in == 0, "%d - %d" % (n_in, n_out)
+
+    mask = np.ones([n_in, n_out], dtype=np.float32)
+    if n_out >= n_in:
+        k = n_out // n_in
+        for i in range(n_in):
+            mask[i + 1:, i * k:(i + 1) * k] = 0
+            if zerodiagonal:
+                mask[i:i + 1, i * k:(i + 1) * k] = 0
+    else:
+        k = n_in // n_out
+        for i in range(n_out):
+            mask[(i + 1) * k:, i:i + 1] = 0
+            if zerodiagonal:
+                mask[i * k:(i + 1) * k:, i:i + 1] = 0
+    return mask
+
+
+def get_conv_square_ar_mask(h, w, n_in, n_out, zerodiagonal=False):
+    """
+    Function to get autoregressive convolution with square shape.
+    """
+    l = (h - 1) // 2
+    m = (w - 1) // 2
+    mask = np.ones([h, w, n_in, n_out], dtype=np.float32)
+    mask[:l, :, :, :] = 0
+    mask[:, :m, :, :] = 0
+    mask[l, m, :, :] = get_linear_ar_mask(n_in, n_out, zerodiagonal)
+    return mask
